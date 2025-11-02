@@ -328,13 +328,46 @@
         .status-indicator {
             position: absolute;
             top: 20px;
-            right: 20px;
+            right: 120px;
             width: 10px;
             height: 10px;
             border-radius: 50%;
             background: #4caf50;
             box-shadow: 0 0 8px rgba(76, 175, 80, 0.8);
             animation: pulse 2s infinite;
+        }
+
+        .tradingview-login-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tradingview-login-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .tradingview-login-btn.logged-in {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+
+        .tradingview-login-btn.logged-in:hover {
+            background: rgba(76, 175, 80, 0.4);
         }
 
         @keyframes pulse {
@@ -367,6 +400,9 @@
                 <p>NSE Stock Trading Intelligence Assistant</p>
             </div>
             <div class="status-indicator" id="statusIndicator" title="Learning Active"></div>
+            <button class="tradingview-login-btn" id="tradingviewLoginBtn" onclick="handleTradingViewLogin()">
+                <span id="tvLoginText">📈 Log in to TradingView</span>
+            </button>
         </div>
         
         <div class="chat-messages" id="chatMessages">
@@ -376,8 +412,9 @@
                 📊 Continuously learn from live & historical NSE data<br>
                 📈 Identify demand & supply zones to help you study market behavior<br>
                 📁 Analyze uploaded files (CSV, PDF, images) for trading patterns<br>
+                🔗 Connect to TradingView to analyze your charts & watchlists<br>
                 🧠 Improve your analysis skills through market pattern recognition<br><br>
-                Upload a CSV with price data or ask me about zones, patterns, or market behavior!
+                💡 <strong>Tip:</strong> Click "Log in to TradingView" to connect your account and analyze your charts automatically!
             </div>
         </div>
 
@@ -414,7 +451,9 @@
             uploadedFiles: JSON.parse(localStorage.getItem('uploadedFiles') || '[]'),
             nseHistoricalData: JSON.parse(localStorage.getItem('nseHistoricalData') || '{}'),
             demandSupplyZones: JSON.parse(localStorage.getItem('demandSupplyZones') || '[]'),
-            marketPatterns: JSON.parse(localStorage.getItem('marketPatterns') || '[]')
+            marketPatterns: JSON.parse(localStorage.getItem('marketPatterns') || '[]'),
+            tradingViewAuth: JSON.parse(localStorage.getItem('tradingViewAuth') || '{}'),
+            tradingViewData: JSON.parse(localStorage.getItem('tradingViewData') || '{}')
         };
 
         // DOM Elements
@@ -429,6 +468,7 @@
             loadConversationHistory();
             startTradingViewIntegration();
             startNSEDataCollection();
+            checkTradingViewAuthStatus();
             
             sendBtn.addEventListener('click', sendMessage);
             messageInput.addEventListener('keypress', (e) => {
@@ -439,6 +479,251 @@
             });
             
             fileInput.addEventListener('change', handleFileUpload);
+        }
+
+        // Check TradingView authentication status
+        function checkTradingViewAuthStatus() {
+            if (state.tradingViewAuth.accessToken) {
+                updateTradingViewButton(true);
+                fetchTradingViewData();
+            } else {
+                updateTradingViewButton(false);
+            }
+        }
+
+        // Update TradingView login button UI
+        function updateTradingViewButton(isLoggedIn) {
+            const btn = document.getElementById('tradingviewLoginBtn');
+            const text = document.getElementById('tvLoginText');
+            
+            if (isLoggedIn) {
+                btn.classList.add('logged-in');
+                text.innerHTML = '✅ TradingView Connected';
+                btn.onclick = handleTradingViewLogout;
+            } else {
+                btn.classList.remove('logged-in');
+                text.innerHTML = '📈 Log in to TradingView';
+                btn.onclick = handleTradingViewLogin;
+            }
+        }
+
+        // Handle TradingView OAuth Login
+        function handleTradingViewLogin() {
+            // TradingView OAuth flow
+            // In production, you need to register your app at https://www.tradingview.com/widget-docs/
+            // For now, we'll use a proxy/redirect approach
+            
+            const clientId = 'yash_nse_trading_ai'; // Replace with your TradingView app client ID
+            const redirectUri = `${window.location.origin}/tradingview/callback`;
+            const scope = 'charting_library:read_access,watchlist:read_access';
+            
+            // TradingView OAuth URL (example - adjust based on TradingView's actual OAuth endpoint)
+            const authUrl = `https://www.tradingview.com/oauth/authorize?` +
+                `client_id=${encodeURIComponent(clientId)}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `response_type=code&` +
+                `scope=${encodeURIComponent(scope)}`;
+            
+            // Open TradingView OAuth in popup
+            const width = 600;
+            const height = 700;
+            const left = (window.innerWidth - width) / 2;
+            const top = (window.innerHeight - height) / 2;
+            
+            const popup = window.open(
+                authUrl,
+                'TradingView Login',
+                `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+            );
+            
+            // Listen for OAuth callback via postMessage
+            const messageListener = (event) => {
+                // Verify origin in production
+                // if (event.origin !== window.location.origin) return;
+                
+                if (event.data && event.data.code) {
+                    window.removeEventListener('message', messageListener);
+                    clearInterval(checkPopup);
+                    exchangeCodeForToken(event.data.code);
+                } else if (event.data && event.data.error) {
+                    window.removeEventListener('message', messageListener);
+                    clearInterval(checkPopup);
+                    addMessageToUI(`❌ TradingView login failed: ${event.data.error}`, false);
+                }
+            };
+            
+            window.addEventListener('message', messageListener);
+            
+            // Fallback: Check if popup closed without authentication
+            const checkPopup = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(checkPopup);
+                    window.removeEventListener('message', messageListener);
+                }
+            }, 1000);
+        }
+
+        // Exchange OAuth code for access token (server-side)
+        async function exchangeCodeForToken(code) {
+            try {
+                const response = await fetch('/api/tradingview/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code })
+                });
+                
+                const data = await response.json();
+                
+                if (data.accessToken) {
+                    state.tradingViewAuth = {
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken,
+                        expiresAt: data.expiresAt,
+                        userId: data.userId
+                    };
+                    
+                    localStorage.setItem('tradingViewAuth', JSON.stringify(state.tradingViewAuth));
+                    updateTradingViewButton(true);
+                    fetchTradingViewData();
+                    
+                    addMessageToUI('✅ Successfully connected to TradingView! I can now analyze your charts and watchlists.', false);
+                }
+            } catch (error) {
+                console.error('TradingView auth error:', error);
+                addMessageToUI('❌ Failed to connect to TradingView. Please try again.', false);
+            }
+        }
+
+        // Handle TradingView Logout
+        function handleTradingViewLogout() {
+            if (confirm('Are you sure you want to disconnect from TradingView?')) {
+                state.tradingViewAuth = {};
+                localStorage.removeItem('tradingViewAuth');
+                state.tradingViewData = {};
+                localStorage.removeItem('tradingViewData');
+                
+                updateTradingViewButton(false);
+                addMessageToUI('👋 Disconnected from TradingView.', false);
+            }
+        }
+
+        // Fetch TradingView chart and watchlist data
+        async function fetchTradingViewData() {
+            if (!state.tradingViewAuth.accessToken) return;
+            
+            try {
+                // Fetch user's watchlists
+                const watchlistResponse = await fetch('/api/tradingview/watchlists', {
+                    headers: {
+                        'Authorization': `Bearer ${state.tradingViewAuth.accessToken}`
+                    }
+                });
+                
+                if (watchlistResponse.ok) {
+                    const watchlists = await watchlistResponse.json();
+                    state.tradingViewData.watchlists = watchlists;
+                    
+                    // Fetch symbols from watchlists
+                    for (const watchlist of watchlists) {
+                        await fetchWatchlistSymbols(watchlist.id);
+                    }
+                }
+                
+                // Fetch chart data for NSE stocks
+                await fetchTradingViewChartData();
+                
+                localStorage.setItem('tradingViewData', JSON.stringify(state.tradingViewData));
+                
+            } catch (error) {
+                console.error('Error fetching TradingView data:', error);
+            }
+        }
+
+        // Fetch symbols from a watchlist
+        async function fetchWatchlistSymbols(watchlistId) {
+            try {
+                const response = await fetch(`/api/tradingview/watchlist/${watchlistId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${state.tradingViewAuth.accessToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const symbols = await response.json();
+                    if (!state.tradingViewData.symbols) state.tradingViewData.symbols = [];
+                    state.tradingViewData.symbols.push(...symbols);
+                }
+            } catch (error) {
+                console.error('Error fetching watchlist symbols:', error);
+            }
+        }
+
+        // Fetch TradingView chart data for analysis
+        async function fetchTradingViewChartData() {
+            if (!state.tradingViewAuth.accessToken) return;
+            
+            // Get NSE stocks from watchlists or default list
+            const nseStocks = state.tradingViewData.symbols?.filter(s => 
+                s.includes('NSE:') || s.includes('BSE:')
+            ) || ['NSE:RELIANCE', 'NSE:TCS', 'NSE:HDFCBANK', 'NSE:INFY'];
+            
+            for (const symbol of nseStocks.slice(0, 5)) {
+                try {
+                    const response = await fetch(`/api/tradingview/chart/${encodeURIComponent(symbol)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${state.tradingViewAuth.accessToken}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const chartData = await response.json();
+                        
+                        // Analyze chart data for demand/supply zones
+                        if (chartData.candles && chartData.candles.length > 0) {
+                            analyzeTradingViewChartData(symbol, chartData.candles);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error fetching chart data for ${symbol}:`, error);
+                }
+            }
+        }
+
+        // Analyze TradingView chart data for zones
+        function analyzeTradingViewChartData(symbol, candles) {
+            // Convert TradingView candle format to our format
+            const priceData = candles.map(c => ({
+                open: c.open || c[1],
+                high: c.high || c[2],
+                low: c.low || c[3],
+                close: c.close || c[4],
+                volume: c.volume || c[5] || 0
+            }));
+            
+            // Identify demand/supply zones
+            const zones = identifyDemandSupplyZones(priceData);
+            
+            zones.forEach(zone => {
+                zone.stock = symbol.replace('NSE:', '').replace('BSE:', '');
+                zone.source = 'tradingview_chart';
+                zone.symbol = symbol;
+                zone.timestamp = new Date().toISOString();
+            });
+            
+            state.demandSupplyZones.push(...zones);
+            
+            // Keep only recent zones (last 200)
+            if (state.demandSupplyZones.length > 200) {
+                state.demandSupplyZones = state.demandSupplyZones.slice(-200);
+            }
+            
+            localStorage.setItem('demandSupplyZones', JSON.stringify(state.demandSupplyZones));
+            
+            // Learn market patterns
+            const stockSymbol = symbol.replace('NSE:', '').replace('BSE:', '');
+            learnMarketPatterns(stockSymbol, priceData);
         }
 
         // Load conversation history from localStorage
@@ -622,6 +907,8 @@ IMPORTANT CAPABILITIES:
 - You can identify supply zones (resistance areas where price bounces down)
 - You analyze CSV files with price data to find these zones
 - You learn continuously from NSE historical and live data
+- You can access TradingView charts and watchlists if user is connected
+- You create demand/supply zones based on TradingView chart data
 - You help users understand market behavior through visual zone identification
 
 Previous learned patterns: ${JSON.stringify(state.learnedPatterns.slice(-5))}
@@ -713,7 +1000,12 @@ Market patterns learned: ${state.marketPatterns.length}`
                 if (recentZones.length > 0) {
                     const demandZones = recentZones.filter(z => z.type === 'demand');
                     const supplyZones = recentZones.filter(z => z.type === 'supply');
+                    const tradingViewZones = recentZones.filter(z => z.source === 'tradingview_chart');
+                    
                     enhanced += `\n\n[Identified Zones: ${demandZones.length} demand zones and ${supplyZones.length} supply zones found. `;
+                    if (tradingViewZones.length > 0) {
+                        enhanced += `${tradingViewZones.length} zones from TradingView charts. `;
+                    }
                     if (demandZones.length > 0) {
                         enhanced += `Recent demand zones: ${demandZones.slice(-3).map(z => `${z.stock || 'N/A'} at ${z.price?.toFixed(2) || 'N/A'}`).join(', ')}. `;
                     }
@@ -722,6 +1014,18 @@ Market patterns learned: ${state.marketPatterns.length}`
                     }
                     enhanced += `]`;
                 }
+            }
+
+            // Add TradingView context if connected
+            if (state.tradingViewAuth.accessToken) {
+                enhanced += `\n\n[TradingView Connected: User has authorized TradingView access. Can analyze charts and watchlists.`;
+                if (state.tradingViewData.watchlists?.length > 0) {
+                    enhanced += ` ${state.tradingViewData.watchlists.length} watchlists available.`;
+                }
+                if (state.tradingViewData.symbols?.length > 0) {
+                    enhanced += ` ${state.tradingViewData.symbols.length} symbols tracked.`;
+                }
+                enhanced += `]`;
             }
 
             // Add market patterns context

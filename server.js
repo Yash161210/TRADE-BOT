@@ -31,6 +31,13 @@ app.use(session({
 // Serve static files from the current directory
 app.use(express.static(__dirname));
 
+// TradingView OAuth Configuration
+// Note: In production, register your app at https://www.tradingview.com/widget-docs/
+// and set these environment variables
+const TRADINGVIEW_CLIENT_ID = process.env.TRADINGVIEW_CLIENT_ID || 'yash_nse_trading_ai';
+const TRADINGVIEW_CLIENT_SECRET = process.env.TRADINGVIEW_CLIENT_SECRET || '';
+const TRADINGVIEW_REDIRECT_URI = process.env.TRADINGVIEW_REDIRECT_URI || '';
+
 // Authentication middleware
 function requireAuth(req, res, next) {
     if (req.session.authenticated) {
@@ -228,13 +235,233 @@ app.get('/', requireAuth, (req, res) => {
     }
 });
 
+// TradingView OAuth Callback
+app.get('/tradingview/callback', requireAuth, (req, res) => {
+    const code = req.query.code;
+    const error = req.query.error;
+    
+    if (error) {
+        return res.send(`
+            <html>
+                <body>
+                    <h2>Authentication Failed</h2>
+                    <p>Error: ${error}</p>
+                    <script>window.opener.postMessage({error: '${error}'}, '*'); window.close();</script>
+                </body>
+            </html>
+        `);
+    }
+    
+    if (code) {
+        // Store code temporarily in session
+        req.session.tradingViewCode = code;
+        res.send(`
+            <html>
+                <body>
+                    <h2>Authentication Successful</h2>
+                    <p>Processing your login...</p>
+                    <script>
+                        window.opener.postMessage({code: '${code}'}, '*');
+                        setTimeout(() => window.close(), 1000);
+                    </script>
+                </body>
+            </html>
+        `);
+    } else {
+        res.status(400).send('No authorization code received');
+    }
+});
+
+// Exchange OAuth code for access token
+app.post('/api/tradingview/token', requireAuth, async (req, res) => {
+    try {
+        const { code } = req.body;
+        
+        if (!code) {
+            return res.status(400).json({ error: 'No authorization code provided' });
+        }
+        
+        // In production, exchange code for token with TradingView API
+        // For now, we'll simulate this process
+        // Replace this with actual TradingView OAuth token endpoint
+        const tokenUrl = 'https://www.tradingview.com/oauth/token';
+        
+        // Simulated token exchange (replace with actual TradingView API call)
+        // const response = await fetch(tokenUrl, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/x-www-form-urlencoded'
+        //     },
+        //     body: new URLSearchParams({
+        //         grant_type: 'authorization_code',
+        //         client_id: TRADINGVIEW_CLIENT_ID,
+        //         client_secret: TRADINGVIEW_CLIENT_SECRET,
+        //         code: code,
+        //         redirect_uri: TRADINGVIEW_REDIRECT_URI
+        //     })
+        // });
+        
+        // For development/demo: Store a session token
+        // In production, use actual TradingView token response
+        const accessToken = `tv_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const refreshToken = `tv_refresh_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        
+        // Store token in session (secure server-side storage)
+        req.session.tradingViewAuth = {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+            userId: req.session.userId || 'user_' + Date.now()
+        };
+        
+        res.json({
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAt: req.session.tradingViewAuth.expiresAt,
+            userId: req.session.tradingViewAuth.userId
+        });
+        
+    } catch (error) {
+        console.error('Token exchange error:', error);
+        res.status(500).json({ error: 'Failed to exchange token' });
+    }
+});
+
+// Get TradingView watchlists
+app.get('/api/tradingview/watchlists', requireAuth, async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No authorization token' });
+        }
+        
+        // Verify token matches session (in production, verify with TradingView)
+        const token = authHeader.substring(7);
+        const sessionAuth = req.session.tradingViewAuth;
+        
+        if (!sessionAuth || sessionAuth.accessToken !== token) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // In production, fetch from TradingView API
+        // const response = await fetch('https://www.tradingview.com/api/v1/watchlists', {
+        //     headers: {
+        //         'Authorization': `Bearer ${token}`
+        //     }
+        // });
+        // const watchlists = await response.json();
+        
+        // For demo: Return simulated watchlists
+        res.json([
+            { id: 'nse_stocks', name: 'NSE Stocks', symbols: ['NSE:RELIANCE', 'NSE:TCS', 'NSE:HDFCBANK'] },
+            { id: 'indian_market', name: 'Indian Market', symbols: ['NSE:INFY', 'NSE:ICICIBANK', 'NSE:SBIN'] }
+        ]);
+        
+    } catch (error) {
+        console.error('Watchlists error:', error);
+        res.status(500).json({ error: 'Failed to fetch watchlists' });
+    }
+});
+
+// Get watchlist symbols
+app.get('/api/tradingview/watchlist/:watchlistId', requireAuth, async (req, res) => {
+    try {
+        const { watchlistId } = req.params;
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No authorization token' });
+        }
+        
+        const token = authHeader.substring(7);
+        const sessionAuth = req.session.tradingViewAuth;
+        
+        if (!sessionAuth || sessionAuth.accessToken !== token) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // In production, fetch from TradingView API
+        // For demo: Return symbols based on watchlist ID
+        const watchlists = {
+            'nse_stocks': ['NSE:RELIANCE', 'NSE:TCS', 'NSE:HDFCBANK', 'NSE:INFY', 'NSE:ICICIBANK'],
+            'indian_market': ['NSE:INFY', 'NSE:ICICIBANK', 'NSE:SBIN', 'NSE:BHARTIARTL']
+        };
+        
+        res.json(watchlists[watchlistId] || []);
+        
+    } catch (error) {
+        console.error('Watchlist symbols error:', error);
+        res.status(500).json({ error: 'Failed to fetch watchlist symbols' });
+    }
+});
+
+// Get TradingView chart data
+app.get('/api/tradingview/chart/:symbol', requireAuth, async (req, res) => {
+    try {
+        const { symbol } = req.params;
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No authorization token' });
+        }
+        
+        const token = authHeader.substring(7);
+        const sessionAuth = req.session.tradingViewAuth;
+        
+        if (!sessionAuth || sessionAuth.accessToken !== token) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // In production, fetch from TradingView Charting Library API
+        // const response = await fetch(`https://www.tradingview.com/api/v1/chart/${encodeURIComponent(symbol)}`, {
+        //     headers: {
+        //         'Authorization': `Bearer ${token}`
+        //     }
+        // });
+        // const chartData = await response.json();
+        
+        // For demo: Generate realistic candle data
+        const basePrice = 1000 + Math.random() * 5000;
+        const candles = [];
+        const now = Date.now();
+        
+        for (let i = 100; i >= 0; i--) {
+            const timestamp = now - (i * 24 * 60 * 60 * 1000); // Daily candles
+            const open = basePrice * (1 + (Math.random() - 0.5) * 0.02);
+            const close = open * (1 + (Math.random() - 0.5) * 0.03);
+            const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+            const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+            
+            candles.push({
+                time: Math.floor(timestamp / 1000),
+                open: parseFloat(open.toFixed(2)),
+                high: parseFloat(high.toFixed(2)),
+                low: parseFloat(low.toFixed(2)),
+                close: parseFloat(close.toFixed(2)),
+                volume: Math.floor(Math.random() * 1000000) + 100000
+            });
+        }
+        
+        res.json({
+            symbol: symbol,
+            candles: candles,
+            timeframe: '1D'
+        });
+        
+    } catch (error) {
+        console.error('Chart data error:', error);
+        res.status(500).json({ error: 'Failed to fetch chart data' });
+    }
+});
+
 // Health check endpoint for Render (no auth required)
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'ok', 
         service: 'Yash AI - NSE Trading Assistant',
         timestamp: new Date().toISOString(),
-        authenticated: req.session.authenticated || false
+        authenticated: req.session.authenticated || false,
+        tradingViewConnected: !!(req.session.tradingViewAuth?.accessToken)
     });
 });
 
