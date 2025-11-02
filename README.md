@@ -51,7 +51,7 @@ npm start
 
 ## Configuration
 
-The API key is hardcoded in `yash_nft_ai.html`. For production, consider moving it to environment variables.
+The API key is hardcoded in `yash_nft_ai.html` (note: filename contains 'nft' but the application is 100% focused on NSE stock trading, not NFTs). For production, consider moving it to environment variables.
 
 ## Tech Stack
 
