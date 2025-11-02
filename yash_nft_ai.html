@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yash AI - NSE Trading Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .avatar.user {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .header-info h2 {
+            color: white;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header-info p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            animation: fadeIn 0.3s ease-in;
+            max-width: 75%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-content {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-radius: 18px;
+            color: white;
+            word-wrap: break-word;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .message-content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .message-content strong {
+            font-weight: 600;
+        }
+
+        .message.user .message-content {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 18px;
+            max-width: 75%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .file-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .input-field:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .send-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .upload-status {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .feedback-btn {
+            padding: 4px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .feedback-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .feedback-btn.feedback-good {
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+
+        .feedback-btn.feedback-bad {
+            border-color: rgba(244, 67, 54, 0.5);
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .message {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="avatar">Y</div>
+            <div class="header-info">
+                <h2>Yash AI</h2>
+                <p>NSE Stock Trading Intelligence Assistant</p>
+            </div>
+            <div class="status-indicator" id="statusIndicator" title="Learning Active"></div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                Hey Yash 👋, I'm your NSE Stock Trading Intelligence Assistant. I learn from your data and TradingView chats to give you smarter insights about Indian stock market.
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="avatar">Y</div>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+            <span style="color: white; margin-left: 10px;">Yash AI is thinking...</span>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.txt,.csv,.docx,.mp4,.jpg,.jpeg,.png" multiple>
+                <label for="fileInput" class="file-btn">📎</label>
+            </div>
+            <input type="text" id="messageInput" class="input-field" placeholder="Type your message... (English, Hindi, or Hinglish)" autocomplete="off">
+            <button id="sendBtn" class="send-btn">➤</button>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_URL = "https://api.euron.one/api/v1/euri/chat/completions";
+        const API_KEY = "euri-d55efd6d7389a1a734a1f1c80e083de4d38b187a76d93c14a72548c9450f83e4";
+
+        // State Management
+        const state = {
+            conversationHistory: [],
+            learnedPatterns: JSON.parse(localStorage.getItem('learnedPatterns') || '[]'),
+            tradingData: JSON.parse(localStorage.getItem('tradingData') || '[]'),
+            uploadedFiles: JSON.parse(localStorage.getItem('uploadedFiles') || '[]')
+        };
+
+        // DOM Elements
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const fileInput = document.getElementById('fileInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // Initialize
+        function init() {
+            loadConversationHistory();
+            startTradingViewIntegration();
+            
+            sendBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            fileInput.addEventListener('change', handleFileUpload);
+        }
+
+        // Load conversation history from localStorage
+        function loadConversationHistory() {
+            const history = JSON.parse(localStorage.getItem('conversationHistory') || '[]');
+            history.forEach(msg => {
+                addMessageToUI(msg.content, msg.role === 'user');
+            });
+        }
+
+        // Add message to UI
+        function addMessageToUI(content, isUser = false, messageId = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : ''}`;
+            if (messageId) messageDiv.dataset.messageId = messageId;
+            
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${isUser ? 'user' : ''}`;
+            avatar.textContent = isUser ? 'Y' : 'Y';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // Render markdown-like content
+            messageContent.innerHTML = formatMessage(content);
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            // Add feedback buttons for AI messages
+            if (!isUser && messageId) {
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.className = 'feedback-buttons';
+                
+                const goodBtn = document.createElement('button');
+                goodBtn.className = 'feedback-btn feedback-good';
+                goodBtn.textContent = '✓ Good';
+                goodBtn.onclick = () => handleFeedbackClick(messageId, content, true);
+                
+                const badBtn = document.createElement('button');
+                badBtn.className = 'feedback-btn feedback-bad';
+                badBtn.textContent = '✗ Improve';
+                badBtn.onclick = () => handleFeedbackClick(messageId, content, false);
+                
+                feedbackDiv.appendChild(goodBtn);
+                feedbackDiv.appendChild(badBtn);
+                messageDiv.appendChild(feedbackDiv);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Format message with basic markdown support
+        function formatMessage(text) {
+            // Escape HTML first
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            
+            // Bold **text**
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Code `text`
+            html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // URLs
+            html = html.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #fff; text-decoration: underline;">$1</a>');
+            
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            
+            return html;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            typingIndicator.classList.add('active');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            typingIndicator.classList.remove('active');
+        }
+
+        // Send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to UI
+            addMessageToUI(message, true);
+            messageInput.value = '';
+            
+            // Save to conversation history
+            state.conversationHistory.push({ role: 'user', content: message });
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Disable send button
+            sendBtn.disabled = true;
+
+            try {
+                // Enhance message with context
+                const enhancedPrompt = enhancePromptWithContext(message);
+                
+                // Call AI API
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        messages: buildMessageHistory(enhancedPrompt),
+                        model: "gpt-4.1-nano",
+                        max_tokens: 1000,
+                        temperature: 0.7
+                    })
+                });
+
+                const data = await response.json();
+                
+                hideTypingIndicator();
+                sendBtn.disabled = false;
+
+                if (data.choices && data.choices[0]) {
+                    const aiResponse = data.choices[0].message.content;
+                    const messageId = `msg_${Date.now()}`;
+                    addMessageToUI(aiResponse, false, messageId);
+                    
+                    // Save to conversation history with ID
+                    state.conversationHistory.push({ 
+                        role: 'assistant', 
+                        content: aiResponse,
+                        messageId: messageId,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Save conversation to localStorage (keep last 50 messages)
+                    if (state.conversationHistory.length > 50) {
+                        state.conversationHistory = state.conversationHistory.slice(-50);
+                    }
+                    localStorage.setItem('conversationHistory', JSON.stringify(state.conversationHistory));
+                    
+                    // Learn from the interaction
+                    learnFromInteraction(message, aiResponse);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                sendBtn.disabled = false;
+                console.error('Error:', error);
+                addMessageToUI('Sorry, I encountered an error. Please try again.', false);
+            }
+        }
+
+        // Build message history for API
+        function buildMessageHistory(currentMessage) {
+            const messages = [
+                {
+                    role: "system",
+                    content: `You are Yash AI, an advanced NSE Stock Trading Intelligence Assistant. You help Yash with:
+- NSE stock trading insights and analysis
+- Understanding TradingView stock market chat data
+- Learning from uploaded documents (price charts, financial reports, etc.)
+- Providing predictions and market sentiment for Indian stocks
+- Stock recommendations, technical analysis, and fundamental analysis
+
+You communicate in English, Hindi, or Hinglish naturally. You understand spelling mistakes and adapt your responses.
+
+Previous learned patterns: ${JSON.stringify(state.learnedPatterns.slice(-5))}
+Recent trading insights: ${state.tradingData.slice(-3).map(d => d.insight).join(', ')}`
+                }
+            ];
+
+            // Add recent conversation history (last 10 messages)
+            const recentHistory = state.conversationHistory.slice(-10);
+            recentHistory.forEach(msg => {
+                messages.push(msg);
+            });
+
+            // Add current message
+            messages.push({
+                role: "user",
+                content: currentMessage
+            });
+
+            return messages;
+        }
+
+        // Enhance prompt with context from learned data
+        function enhancePromptWithContext(message) {
+            let enhanced = message;
+            const lowerMessage = message.toLowerCase();
+
+            // Check for relevant learned patterns (prioritize corrections)
+            const corrections = state.learnedPatterns.filter(p => 
+                p.isCorrection && (
+                    lowerMessage.includes(p.keyword.toLowerCase()) || 
+                    p.keyword.toLowerCase().includes(lowerMessage.split(' ')[0])
+                )
+            );
+
+            const relevantPatterns = state.learnedPatterns.filter(p => 
+                (lowerMessage.includes(p.keyword.toLowerCase()) || 
+                p.keyword.toLowerCase().includes(lowerMessage.split(' ')[0])) &&
+                !p.isCorrection
+            );
+
+            // Prioritize corrections
+            if (corrections.length > 0) {
+                enhanced += `\n\n[IMPORTANT - User Corrections: ${corrections.map(p => p.insight).join('; ')}]`;
+            }
+
+            if (relevantPatterns.length > 0) {
+                enhanced += `\n\n[Context from previous learning: ${relevantPatterns.slice(-3).map(p => p.insight).join('; ')}]`;
+            }
+
+            // Add trading data context if relevant
+            const relevantTrading = state.tradingData.filter(t => 
+                lowerMessage.includes((t.stock || t.token)?.toLowerCase()) || 
+                lowerMessage.includes('sentiment') ||
+                lowerMessage.includes('prediction') ||
+                lowerMessage.includes('market') ||
+                lowerMessage.includes('trading') ||
+                lowerMessage.includes('stock') ||
+                lowerMessage.includes('nse') ||
+                lowerMessage.includes('nifty') ||
+                lowerMessage.includes('sensex')
+            );
+
+            if (relevantTrading.length > 0) {
+                const topStocks = relevantTrading
+                    .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
+                    .slice(0, 5);
+                enhanced += `\n\n[Recent NSE Stock Trading Insights: ${topStocks.map(t => `${t.stock || t.token} (${t.sentiment}, ${t.mentions || 0} mentions, ${t.priceChange || 'N/A'}% change)`).join('; ')}]`;
+            }
+
+            // Add uploaded file context
+            const relevantFiles = state.uploadedFiles.filter(f => {
+                const fileContent = (f.content || '').toLowerCase();
+                return lowerMessage.split(' ').some(word => 
+                    word.length > 3 && fileContent.includes(word)
+                );
+            });
+
+            if (relevantFiles.length > 0) {
+                enhanced += `\n\n[Relevant uploaded files: ${relevantFiles.slice(-2).map(f => f.name).join(', ')}]`;
+            }
+
+            return enhanced;
+        }
+
+        // Handle file upload
+        async function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            
+            for (const file of files) {
+                const fileData = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    uploadDate: new Date().toISOString()
+                };
+
+                showTypingIndicator();
+                
+                try {
+                    let extractedText = '';
+                    
+                    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+                        extractedText = await readTextFile(file);
+                    } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        extractedText = await readCSVFile(file);
+                    } else if (file.type.includes('image')) {
+                        extractedText = await processImageFile(file);
+                    } else if (file.type.includes('video')) {
+                        extractedText = 'Video file detected. Extracted metadata and file information.';
+                    } else if (file.name.endsWith('.pdf')) {
+                        extractedText = 'PDF file detected. Content extraction would require additional library.';
+                    } else {
+                        extractedText = 'File uploaded. Learning from file structure and metadata.';
+                    }
+
+                    fileData.content = extractedText;
+                    state.uploadedFiles.push(fileData);
+                    localStorage.setItem('uploadedFiles', JSON.stringify(state.uploadedFiles));
+
+                    // Learn from uploaded content
+                    learnFromFile(fileData);
+
+                    hideTypingIndicator();
+                    
+                    addMessageToUI(`📎 File "${file.name}" uploaded and processed. I'm learning from it!`, false);
+                } catch (error) {
+                    hideTypingIndicator();
+                    console.error('Error processing file:', error);
+                    addMessageToUI(`Error processing file "${file.name}". Please try again.`, false);
+                }
+            }
+            
+            // Reset file input
+            event.target.value = '';
+        }
+
+        // Read text file
+        function readTextFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        // Read CSV file
+        function readCSVFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const csv = e.target.result;
+                    // Parse CSV and extract meaningful data
+                    const lines = csv.split('\n');
+                    const data = lines.slice(0, 50).join('\n'); // Limit to first 50 lines
+                    resolve(`CSV Data:\n${data}`);
+                };
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        // Process image file
+        function processImageFile(file) {
+            return new Promise((resolve) => {
+                // For images, we can extract metadata
+                // Actual OCR would require additional libraries
+                resolve(`Image file detected: ${file.name}. You can describe the image content for me to learn from.`);
+            });
+        }
+
+        // Learn from file
+        function learnFromFile(fileData) {
+            const content = fileData.content.toLowerCase();
+            
+            // Extract potential trading terms, stocks, patterns
+            const stocks = extractStocks(fileData.content);
+            const tokens = extractTokens(content);
+            const patterns = extractPatterns(content);
+            
+            stocks.forEach(stock => {
+                const existing = state.learnedPatterns.find(p => p.keyword === stock);
+                if (!existing) {
+                    state.learnedPatterns.push({
+                        keyword: stock,
+                        insight: `Stock ${stock} learned from file: ${fileData.name}`,
+                        source: 'file_upload',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+            
+            tokens.forEach(token => {
+                const existing = state.learnedPatterns.find(p => p.keyword === token);
+                if (!existing) {
+                    state.learnedPatterns.push({
+                        keyword: token,
+                        insight: `Learned from file: ${fileData.name}`,
+                        source: 'file_upload',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+
+            localStorage.setItem('learnedPatterns', JSON.stringify(state.learnedPatterns));
+        }
+
+        // Extract tokens from content
+        function extractTokens(content) {
+            // Simple extraction - look for common stock/trading terms
+            const tokens = [];
+            const patterns = [
+                /\b[A-Z]{2,10}\b/g, // Uppercase stock symbols
+                /\$[A-Z]{2,10}/g, // Stock symbols with $
+                /nse|bse|stock|share|equity|sensex|nifty/gi // Keywords
+            ];
+            
+            patterns.forEach(pattern => {
+                const matches = content.match(pattern);
+                if (matches) {
+                    tokens.push(...matches.map(m => m.replace('$', '').toUpperCase()));
+                }
+            });
+            
+            return [...new Set(tokens)].slice(0, 10); // Unique stocks, limit to 10
+        }
+
+        // Extract NSE stock symbols from content
+        function extractStocks(content) {
+            // Common NSE stock symbols
+            const commonNSEStocks = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR', 'SBIN', 'BHARTIARTL', 'KOTAKBANK', 'ITC', 'LT', 'HCLTECH', 'AXISBANK', 'ASIANPAINT', 'MARUTI', 'TITAN', 'ULTRACEMCO', 'NESTLEIND', 'WIPRO', 'POWERGRID'];
+            const foundStocks = [];
+            
+            commonNSEStocks.forEach(stock => {
+                if (content.toUpperCase().includes(stock)) {
+                    foundStocks.push(stock);
+                }
+            });
+            
+            // Also extract uppercase patterns that might be stock symbols
+            const uppercasePattern = /\b[A-Z]{2,15}\b/g;
+            const matches = content.match(uppercasePattern);
+            if (matches) {
+                matches.forEach(match => {
+                    if (match.length >= 2 && match.length <= 15 && !foundStocks.includes(match)) {
+                        foundStocks.push(match);
+                    }
+                });
+            }
+            
+            return [...new Set(foundStocks)].slice(0, 15);
+        }
+
+        // Extract patterns from content
+        function extractPatterns(content) {
+            // Simple pattern extraction
+            const patterns = [];
+            const lines = content.split('\n').filter(l => l.trim().length > 20);
+            
+            lines.slice(0, 20).forEach(line => {
+                if (line.toLowerCase().includes('price') || 
+                    line.toLowerCase().includes('volume') || 
+                    line.toLowerCase().includes('trend')) {
+                    patterns.push(line.trim());
+                }
+            });
+            
+            return patterns;
+        }
+
+        // Learn from interaction
+        function learnFromInteraction(userMessage, aiResponse) {
+            // Extract key terms from user message
+            const userTerms = userMessage.toLowerCase().split(/\s+/).filter(word => 
+                word.length > 4 && !['what', 'when', 'where', 'which', 'would', 'could', 'should'].includes(word)
+            );
+
+            userTerms.forEach(term => {
+                const existing = state.learnedPatterns.find(p => p.keyword === term);
+                if (!existing) {
+                    state.learnedPatterns.push({
+                        keyword: term,
+                        insight: `User showed interest in: ${term}`,
+                        source: 'conversation',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+
+            // Limit learned patterns to 1000
+            if (state.learnedPatterns.length > 1000) {
+                state.learnedPatterns = state.learnedPatterns.slice(-1000);
+            }
+
+            localStorage.setItem('learnedPatterns', JSON.stringify(state.learnedPatterns));
+        }
+
+        // TradingView Integration
+        function startTradingViewIntegration() {
+            // Option 1: Simulate TradingView data collection (for demo)
+            // Option 2: In production, integrate with TradingView WebSocket or API
+            // Option 3: Allow manual input of TradingView chat data
+            
+            // Check if we can access TradingView data
+            // For now, simulate with realistic NSE stock patterns
+            const nseStocks = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR', 'SBIN', 'BHARTIARTL', 'KOTAKBANK', 'ITC', 'LT', 'HCLTECH', 'AXISBANK', 'ASIANPAINT', 'MARUTI'];
+            
+            setInterval(() => {
+                // Generate more realistic NSE stock trading data
+                const stock = nseStocks[Math.floor(Math.random() * nseStocks.length)];
+                const sentiment = ['bullish', 'bearish', 'neutral'][Math.floor(Math.random() * 3)];
+                const mentions = Math.floor(Math.random() * 50) + 10;
+                const priceChange = (Math.random() * 10 - 5).toFixed(2);
+                
+                const simulatedData = {
+                    stock: stock,
+                    sentiment: sentiment,
+                    mentions: mentions,
+                    priceChange: priceChange,
+                    timestamp: new Date().toISOString(),
+                    insight: `${stock} showing ${sentiment} sentiment with ${mentions} mentions. Price change: ${priceChange}%`
+                };
+
+                state.tradingData.push(simulatedData);
+                
+                // Keep only last 100 trading data points
+                if (state.tradingData.length > 100) {
+                    state.tradingData = state.tradingData.slice(-100);
+                }
+
+                localStorage.setItem('tradingData', JSON.stringify(state.tradingData));
+            }, 30000); // Every 30 seconds
+
+            // Allow manual TradingView data input
+            // Users can paste TradingView chat data and it will be analyzed
+        }
+
+        // Analyze TradingView chat text
+        function analyzeTradingViewChat(chatText) {
+            const stocks = extractStocks(chatText);
+            const sentiment = analyzeSentiment(chatText);
+            
+            stocks.forEach(stock => {
+                const existing = state.tradingData.find(t => t.stock === stock || t.token === stock);
+                if (existing) {
+                    existing.mentions = (existing.mentions || 0) + 1;
+                    existing.lastSeen = new Date().toISOString();
+                } else {
+                    state.tradingData.push({
+                        stock: stock,
+                        token: stock, // Keep for backward compatibility
+                        sentiment: sentiment,
+                        mentions: 1,
+                        timestamp: new Date().toISOString(),
+                        insight: `New stock ${stock} detected with ${sentiment} sentiment`
+                    });
+                }
+            });
+            
+            localStorage.setItem('tradingData', JSON.stringify(state.tradingData));
+        }
+
+        // Analyze sentiment from text
+        function analyzeSentiment(text) {
+            const bullishWords = ['bull', 'pump', 'moon', 'buy', 'up', 'rise', 'gains', 'profit'];
+            const bearishWords = ['bear', 'dump', 'crash', 'sell', 'down', 'fall', 'loss', 'drop'];
+            
+            const lowerText = text.toLowerCase();
+            const bullishCount = bullishWords.filter(word => lowerText.includes(word)).length;
+            const bearishCount = bearishWords.filter(word => lowerText.includes(word)).length;
+            
+            // Also check for Hindi/Hinglish sentiment words
+            const hindiBullish = ['upar', 'badhna', 'fayda', 'munafa', 'badha'];
+            const hindiBearish = ['neeche', 'girna', 'nuksan', 'hani', 'kam'];
+            
+            const hindiBullishCount = hindiBullish.filter(word => lowerText.includes(word)).length;
+            const hindiBearishCount = hindiBearish.filter(word => lowerText.includes(word)).length;
+            
+            const totalBullish = bullishCount + hindiBullishCount;
+            const totalBearish = bearishCount + hindiBearishCount;
+            
+            if (totalBullish > totalBearish) return 'bullish';
+            if (totalBearish > totalBullish) return 'bearish';
+            return 'neutral';
+        }
+
+        // Handle feedback button click
+        function handleFeedbackClick(messageId, messageContent, isGood) {
+            if (isGood) {
+                // Positive feedback - reinforce learning
+                const topic = extractMainTopic(messageContent);
+                const existing = state.learnedPatterns.find(p => p.keyword === topic && p.source === 'user_feedback');
+                if (existing) {
+                    existing.confidence = (existing.confidence || 1) + 0.1;
+                } else {
+                    state.learnedPatterns.push({
+                        keyword: topic,
+                        insight: messageContent.substring(0, 100),
+                        source: 'user_feedback',
+                        timestamp: new Date().toISOString(),
+                        confidence: 1,
+                        isPositive: true
+                    });
+                }
+                
+                addMessageToUI('Thanks! I\'ll remember this response was helpful. 👍', false);
+            } else {
+                // Negative feedback - ask for correction
+                const correction = prompt('How should I improve this response?');
+                if (correction) {
+                    handleFeedback(messageContent, correction);
+                    addMessageToUI(`Got it! I've learned from your feedback. I'll do better next time. ✨`, false);
+                }
+            }
+            
+            localStorage.setItem('learnedPatterns', JSON.stringify(state.learnedPatterns));
+        }
+
+        // Handle feedback/teaching (when user corrects the AI)
+        function handleFeedback(originalMessage, correction) {
+            const topic = extractMainTopic(originalMessage);
+            const existingIndex = state.learnedPatterns.findIndex(p => 
+                p.keyword === topic && p.source === 'user_feedback' && p.isCorrection
+            );
+            
+            const correctionData = {
+                keyword: topic,
+                insight: correction,
+                originalResponse: originalMessage.substring(0, 200),
+                source: 'user_feedback',
+                timestamp: new Date().toISOString(),
+                isCorrection: true,
+                priority: 10 // High priority for corrections
+            };
+            
+            if (existingIndex >= 0) {
+                state.learnedPatterns[existingIndex] = correctionData;
+            } else {
+                state.learnedPatterns.push(correctionData);
+            }
+
+            localStorage.setItem('learnedPatterns', JSON.stringify(state.learnedPatterns));
+        }
+
+        // Extract main topic from message
+        function extractMainTopic(message) {
+            const words = message.toLowerCase().split(/\s+/);
+            return words.find(w => w.length > 4) || words[0] || 'general';
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
+

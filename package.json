@@ -1,0 +1,24 @@
+{
+  "name": "yash-nse-trading-ai",
+  "version": "1.0.0",
+  "description": "Yash AI - NSE Stock Trading Intelligence Assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "nse",
+    "trading",
+    "ai",
+    "chatbot"
+  ],
+  "author": "Yash",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
