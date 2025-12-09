@@ -439,9 +439,8 @@
     </div>
 
     <script>
-        // API Configuration
-        const API_URL = "https://api.euron.one/api/v1/euri/chat/completions";
-        const API_KEY = "euri-d55efd6d7389a1a734a1f1c80e083de4d38b187a76d93c14a72548c9450f83e4";
+        // API Configuration (secured via backend)
+        const API_URL = "/api/generate";
 
         // State Management
         const state = {
@@ -833,18 +832,14 @@
                 // Enhance message with context
                 const enhancedPrompt = enhancePromptWithContext(message);
                 
-                // Call AI API
+                // Call backend AI API
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${API_KEY}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        messages: buildMessageHistory(enhancedPrompt),
-                        model: "gpt-4.1-nano",
-                        max_tokens: 1000,
-                        temperature: 0.7
+                        prompt: enhancedPrompt
                     })
                 });
 
@@ -853,8 +848,8 @@
                 hideTypingIndicator();
                 sendBtn.disabled = false;
 
-                if (data.choices && data.choices[0]) {
-                    const aiResponse = data.choices[0].message.content;
+                if (data.code) {
+                    const aiResponse = data.code;
                     const messageId = `msg_${Date.now()}`;
                     addMessageToUI(aiResponse, false, messageId);
                     

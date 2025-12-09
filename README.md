@@ -52,7 +52,7 @@ npm start
 ## Configuration
 
 ### API Keys
-- **Euron AI API**: Hardcoded in `yash_nft_ai.html`. For production, consider moving to environment variables.
+- **Euron AI API**: Set in `.env` as `EURON_API_KEY`.
 - **TradingView OAuth**: For production use, register your app at [TradingView Widget Docs](https://www.tradingview.com/widget-docs/) and set environment variables:
   - `TRADINGVIEW_CLIENT_ID`
   - `TRADINGVIEW_CLIENT_SECRET`
